@@ -1,0 +1,1 @@
+# Readme file for AS3397 comparison between NOAA20 (JPSS1) and SNPP VIIRS Albedo
