@@ -91,7 +91,7 @@ class LaadsUrlsDict:
                     # Get the file name
                     file_name = self.dictionary[tile][str(date.year)][doy]
                     # If only the file name was request
-                    if file_only is True:
+                    if file_only:
                         # Return the filename
                         return file_name
                     # Otherwise (full URL)
@@ -167,7 +167,7 @@ def connect_to_laads():
 
 
 # Get a VIIRS H5 file from laads and return it in some form
-def get_VIIRS_file(session_obj, target_url, write_local=False, return_content=False):
+def get_VIIRS_file(session_obj, target_url, write_local=False, return_content=False, return_file=True):
     # Request the H5 file from the provided URL
     r = session_obj.get(target_url)
     # If the request failed
@@ -183,10 +183,15 @@ def get_VIIRS_file(session_obj, target_url, write_local=False, return_content=Fa
         # If content
         if return_content is True:
             return r.content
-        # Convert to h5 file object
+        # Convert to h5 file object (checks integrity)
+        # <> Replace with checksum
         h5file = h5py.File(io.BytesIO(r.content), 'r')
-        # Convert the response content to an H5py File object and return
-        return h5file
+        # If we are returning the file
+        if return_file:
+            # Convert the response content to an H5py File object and return
+            return h5file
+        # If returning nothing else, but successfully reached this point, return True
+        return True
     # If it fails (incomplete file)
     except:
         # Print a warning

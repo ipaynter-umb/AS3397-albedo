@@ -3,6 +3,9 @@ import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from time import time
 from numpy import around
+from os import walk, environ
+from dotenv import load_dotenv
+from pathlib import Path
 
 
 # Function for our multi-threaded workers to use
@@ -19,39 +22,98 @@ def worker_function(target_url):
     return h5file
 
 
-# Mark start time
-stime = time()
+# Function to check whether files have already been downloaded
+def check_for_files(url_dict, tiles, dates, url_list=None):
+    # If no ongoing url list was provided
+    if not url_list:
+        # Make an empty list
+        url_list = []
+    # For each tile
+    for tile in tiles:
+        # For each date
+        for date in dates:
+            # Get the file name
+            file_name = url_dict.get_url_from_date(tile, date, file_only=True)
+            # If the file has not previously been downloaded
+            if not check_for_file(file_name):
+                # Get the url from date
+                target_url = url_dict.get_url_from_date(tile, date)
+                # If there was an url
+                if target_url:
+                    # Add URL to list
+                    url_list.append(target_url)
+    # Return URL list
+    return url_list
 
-# Retrieve a dictionary of the URLs on LAADS
-test_dict = t_laads_tools.LaadsUrlsDict("VJ143MA3", archive_set="3397")
 
-# Report time elapsed
-print(f"URL dictionary retrieved in {around(time() - stime, decimals=2)} seconds.")
-# Checkpoint the time
-ptime = time()
+# Function to check whether a single file has already been downloaded
+def check_for_file(file_name):
+    # For each file in the output directory
+    for root, dirs, files in walk(Path(environ['output_files_path'])):
+        for file in files:
+            # If it matches the file name
+            if file_name == file:
+                # Return True
+                return True
+    # If we made it this far, file was not found, return False
+    return False
 
-# For a list of urls within a specified date range
-url_list = test_dict.get_urls_from_date_range(tile="h09v05",
-                                              start_date=datetime.date(year=2021, month=1, day=1),
-                                              end_date=datetime.date(year=2021, month=1, day=7))
 
-# Report time elapsed
-print(f"List of {len(url_list)} URLs formed in {around(time() - ptime, decimals=2)} seconds.")
-# Checkpoint the time
-ptime = time()
+# Main function
+def main(tiles, dates):
 
-# Start a ThreadPoolExecutor
-with ThreadPoolExecutor(max_workers=3) as executor:
-    # Submit the tasks from the url list to the worker function
-    future_events = {executor.submit(worker_function, target_url): target_url for target_url in
-                     url_list}
-    # As each worker finishes its work (i.e. as each worker function finishes)
-    for completed_event in as_completed(future_events):
-        # The completed events are keys for the future_events dictionary
-        # Referencing the value for the key returns the inputs that were submitted to the worker (the url in this case)
-        original_task = future_events[completed_event]
-        # Calling the .result() method returns whatever is returned by the function the workers performed
-        # In this case we submitted tasks to the worker_function which returns the h5file object
-        h5obj = completed_event.result()
-# Report on the overall time taken
-print(f"All downloads finished in {around(time() - stime, decimals=2)} seconds.")
+    # Mark start time
+    stime = time()
+
+    # Retrieve a dictionary of the VJ1 URLs on LAADS
+    vj1_dict = t_laads_tools.LaadsUrlsDict("VJ143MA3", archive_set="3397")
+    # Retrieve a dictionary of the VNP URLs on LAADS
+    vnp_dict = t_laads_tools.LaadsUrlsDict("VNP43MA3", archive_set="3397")
+
+    # Report time elapsed
+    print(f"URL dictionary retrieved in {around(time() - stime, decimals=2)} seconds.")
+    # Checkpoint the time
+    ptime = time()
+
+    # Get list of URLs for VJ1 files that are not already downloaded
+    url_list = check_for_files(vj1_dict, tiles, dates)
+    # Update list of URLs for VNP files that are not already downloaded
+    url_list = check_for_files(vnp_dict, tiles, dates, url_list=url_list)
+    # Report time elapsed
+    print(f"List of {len(url_list)} URLs formed in {around(time() - ptime, decimals=2)} seconds.")
+    # Checkpoint the time
+    ptime = time()
+
+    # Start a ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        # Submit the tasks from the url list to the worker function
+        future_events = {executor.submit(worker_function, target_url): target_url for target_url in
+                         url_list}
+        # As each worker finishes its work (i.e. as each worker function finishes)
+        for completed_event in as_completed(future_events):
+            # The completed events are keys for the future_events dictionary
+            # Referencing the value for the key returns the inputs that were submitted to the worker (the url in this case)
+            original_task = future_events[completed_event]
+            # Calling the .result() method returns whatever is returned by the function the workers performed
+            # In this case we submitted tasks to the worker_function which returns the h5file object
+            h5obj = completed_event.result()
+    # Report on the overall time taken
+    print(f"All downloads finished in {around(time() - stime, decimals=2)} seconds.")
+
+
+# If file called directly
+if __name__ == "__main__":
+
+    # Load the environmental variables from .env file
+    load_dotenv()
+
+    # Tile list
+    tile_list = ["h12v04", "h17v01"]
+
+    # Date list
+    date_list = [datetime.date(year=2021,
+                               month=7,
+                               day=20)]
+
+    # Run main function
+    main(tile_list, date_list)
