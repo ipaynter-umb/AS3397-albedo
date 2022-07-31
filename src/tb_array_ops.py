@@ -9,8 +9,23 @@ from matplotlib import pyplot as plt
 dotenv.load_dotenv()
 
 # Open the vnp and vj1 files as h5py File objects
-vnp_file = h5py.File(Path(environ['output_files_path'] + 'VJ143MA1.A2021002.h09v05.002.2022154001746.h5'))
-vj1_file = h5py.File(Path(environ['output_files_path'] + 'VJ143MA1.A2021004.h09v05.002.2022154021510.h5'))
+vnp_file = h5py.File(Path(environ['output_files_path'] + 'VJ143MA3.A2021001.h09v05.002.2022153232020.h5'))
+#vj1_file = h5py.File(Path(environ['output_files_path'] + 'VJ143MA1.A2021004.h09v05.002.2022154021510.h5'))
+
+for key in vnp_file['HDFEOS']['GRIDS']['VIIRS_Grid_BRDF']['Data Fields'].keys():
+    print(key)
+    continue
+    if "Quality" in key:
+        qual_array = np.array(vnp_file['HDFEOS']['GRIDS']['VIIRS_Grid_BRDF']['Data Fields'][key])
+        oned_qual = np.reshape(qual_array, qual_array.shape[0] * qual_array.shape[1])
+        print(np.nanmax(np.where(oned_qual != 255, oned_qual, np.nan)))
+        fig = plt.figure(figsize=(8, 8))
+        ax = fig.add_subplot(1, 1, 1)
+        ax.hist(oned_qual, bins=np.arange(0, 10, 1))
+
+        plt.show()
+
+exit()
 
 # Get the array for a specific band
 vnp_array = np.array(vnp_file['HDFEOS']['GRIDS']['VIIRS_Grid_BRDF']['Data Fields']['BRDF_Albedo_Parameters_M1'])

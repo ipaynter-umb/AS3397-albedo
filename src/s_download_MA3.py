@@ -60,15 +60,15 @@ def check_for_file(file_name):
 
 
 # Main function
-def main(tiles, dates):
+def main(archive_set, product, tiles, dates):
 
     # Mark start time
     stime = time()
 
     # Retrieve a dictionary of the VJ1 URLs on LAADS
-    vj1_dict = t_laads_tools.LaadsUrlsDict("VJ143MA3", archive_set="3397")
+    vj1_dict = t_laads_tools.LaadsUrlsDict(f"VJ1{product}", archive_set=archive_set)
     # Retrieve a dictionary of the VNP URLs on LAADS
-    vnp_dict = t_laads_tools.LaadsUrlsDict("VNP43MA3", archive_set="3397")
+    vnp_dict = t_laads_tools.LaadsUrlsDict(f"VNP{product}", archive_set=archive_set)
 
     # Report time elapsed
     print(f"URL dictionary retrieved in {around(time() - stime, decimals=2)} seconds.")
@@ -107,6 +107,12 @@ if __name__ == "__main__":
     # Load the environmental variables from .env file
     load_dotenv()
 
+    # Archive set for product. Enter as number only (e.g. for AS3397, enter "3397")
+    arch_set = "3397"
+
+    # Product base name (e.g. for VNP43MA3 versus VJ143MA3, enter "43MA3")
+    product_base = "43MA4"
+
     # Tile list
     tile_list = ["h12v04", "h17v01"]
 
@@ -116,4 +122,4 @@ if __name__ == "__main__":
                                day=20)]
 
     # Run main function
-    main(tile_list, date_list)
+    main(arch_set, product_base, tile_list, date_list)

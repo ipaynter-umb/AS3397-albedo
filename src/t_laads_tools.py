@@ -59,14 +59,14 @@ class LaadsUrlsDict:
             with open(latest_file_path, 'r') as f:
                 # Load as dictionary
                 urls_dict = json.load(f)
+            # Reference dictionary
+            self.dictionary = urls_dict
         # Otherwise (no file)
         else:
-            # Update the file
+            # Update the file (this will reference the dictionary)
             get_VIIRS_availability(data_product,
                                    existing_dict=self,
                                    archive_set=self.archive_set)
-        # Reference dictionary
-        self.dictionary = urls_dict
 
     # Get a LAADS url from a datetime object
     def get_url_from_date(self, tile, date, file_only=False):
