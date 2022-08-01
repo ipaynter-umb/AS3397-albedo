@@ -34,6 +34,7 @@ def main(vnp_file_name, vj1_file_name, albedo_sat, save_figs=False, show_figs=Tr
     doy = split_name[1][5:8]
     product = split_name[0][3:]
     # Establish the keywords and scale factor for the product
+    # <> support dictionary?
     keyword = "Albedo"
     figure_keyword = "Albedo"
     scale_factor = 0.001
@@ -83,11 +84,7 @@ def main(vnp_file_name, vj1_file_name, albedo_sat, save_figs=False, show_figs=Tr
             # Subtract the VJ1 band values from the SNPP values, apply scale factor
             diff_array = np.multiply(np.subtract(vnp_filter_array, vj1_filter_array), scale_factor)
 
-            # Calculate the percent difference (relative to VNP)
-            #perc_diff = np.where(vnp_filter_array != 0, np.multiply(np.divide(diff_array, vnp_filter_array), 100), 0)
-
             # Transform to a 1D arrays
-            #oned_diff = np.reshape(perc_diff, perc_diff.shape[0] * perc_diff.shape[1])
             oned_diff = np.reshape(diff_array, diff_array.shape[0] * diff_array.shape[1])
 
             # Apply the scale factors
@@ -102,107 +99,119 @@ def main(vnp_file_name, vj1_file_name, albedo_sat, save_figs=False, show_figs=Tr
             overall_max = max(np.nanmax(vnp_filter_array), np.nanmax(vj1_filter_array))
             overall_min = min(np.nanmin(vnp_filter_array), np.nanmin(vj1_filter_array))
 
+            # PLOTTING DATA
+
             # Get a colormap object
             norm = mpl.colors.Normalize(vmin=0, vmax=albedo_sat)
             cmap = mpl.cm.get_cmap("seismic").copy()
-            cmap.set_bad('k')
+            cmap.set_bad('black')
             my_cmap = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
 
-            # Plot the data
+            # Establish figure
             fig = plt.figure(figsize=(16, 10))
+
+            # Subplot 1: VNP map
             ax = fig.add_subplot(2, 3, 1)
             ax.imshow(vnp_filter_array, cmap=my_cmap.cmap, norm=norm)
             ax.set_title(f"VNP{product}")
+            # Make the tick marks invisible
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
-            #ax.axis('off')
-
+            # Set up the colorbar by dividing the subplot with an extra axis
             divider = make_axes_locatable(ax)
             cax = divider.append_axes("right", size="5%", pad=0.05)
             plt.colorbar(my_cmap, cax=cax)
 
+            # Subplot 2: VJ1 map
             ax = fig.add_subplot(2, 3, 2)
             ax.imshow(vj1_filter_array, cmap=my_cmap.cmap, norm=norm)
             ax.set_title(f"Layer: {key}, Tile: {tile}, Year: {year}, DOY: {doy} \n\n VJ1{product}")
+            # Make the tick marks invisible
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
-            # ax.axis('off')
-
+            # Set up the colorbar by dividing the subplot with an extra axis
             divider = make_axes_locatable(ax)
             cax = divider.append_axes("right", size="5%", pad=0.05)
             plt.colorbar(my_cmap, cax=cax)
 
+            # Subplot 3: Difference map
             ax = fig.add_subplot(2, 3, 3)
             ax.imshow(diff_array, cmap=perc_cmap.cmap, norm=perc_norm)
             ax.set_title(f"Difference (VNP{product} - VJ1{product})")
+            # Make the tick marks invisible
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
-            # ax.axis('off')
-
-            # create an axes on the right side of ax. The width of cax will be 5%
-            # of ax and the padding between cax and ax will be fixed at 0.05 inch.
+            # Set up the colorbar by dividing the subplot with an extra axis
             divider = make_axes_locatable(ax)
             cax = divider.append_axes("right", size="5%", pad=0.05)
             cbar = plt.colorbar(perc_cmap, cax=cax, ticks=[-0.1, 0, 0.1])
-            #plt.colorbar(perc_cmap, fraction=0.046, pad=0.04)
+            # Set custom tick labels for the colorbar
             cbar.ax.set_yticklabels(['< -0.1', '0', '> +0.1'])
 
-            # Overlaid density plot
+            # Subplot 4: Kernel Density Plot
             ax = fig.add_subplot(2, 3, 4)
-
             # Bandwidth for smoothing
             bandwidth = 0.5
-
+            # Add VNP data
             sns.kdeplot(oned_vnp,
                         ax=ax,
                         x=figure_keyword,
                         fill=True,
                         bw_adjust=bandwidth)
-
+            # Add VJ1 data
             sns.kdeplot(oned_vj1,
                         ax=ax,
                         x=figure_keyword,
                         fill=True,
                         bw_adjust=bandwidth)
-
+            # Set axis label and title
             ax.set_xlabel(figure_keyword)
             ax.set_title(f"Kernel Density Estimates (bandwidth: {bandwidth})")
+            # Add legend
             plt.legend(labels=[f"VNP{product}", f"VJ1{product}"])
 
-            # Complicated hexbin + histograms plot
+            # Subplot 5: Complicated hexbin + histograms plot
             ax = fig.add_subplot(2, 3, 5)
+            # Turn off original axis for subplot (we're just going to use the space)
             ax.axis('off')
-            # for key in ax.__dict__:
-            #     print(key, ax.__dict__.get(key))
-            #print(ax.__dict__['_position'])
-            # exit()
-
+            # Histogram size (height for top histogram, width for right histogram)
             hist_size = 0.03
-
-            # definitions for the hexbin plot axes
-            left, width = ax.__dict__['_position'].x0, ax.__dict__['_position'].x1 - ax.__dict__['_position'].x0 - hist_size
-            bottom, height = ax.__dict__['_position'].y0, ax.__dict__['_position'].y1 - ax.__dict__['_position'].y0 - hist_size
+            # Space between each histogram and axis
             spacing = 0.002
 
+            # Definitions for the hexbin plot axes based on spatial properties of the subplot
+            left = ax.__dict__['_position'].x0
+            width = ax.__dict__['_position'].x1 - ax.__dict__['_position'].x0 - hist_size
+            bottom = ax.__dict__['_position'].y0
+            height = ax.__dict__['_position'].y1 - ax.__dict__['_position'].y0 - hist_size
+
+            # Define the three plot spaces
             rect_hexbin = [left, bottom, width, height]
             rect_histx = [left, bottom + height + spacing, width, hist_size]
             rect_histy = [left + width + spacing, bottom, hist_size, height]
 
+            # Get axes corresponding to the hexbin space
             ax_hexbin = plt.axes(rect_hexbin)
             # Get a colormap object for the hex bins
             hex_norm = mpl.colors.Normalize(vmin=1, vmax=5000)
             cmap = mpl.cm.get_cmap("jet").copy()
+            # Set bad (np.nan) and under (< vmin) colors
             cmap.set_bad('k')
             cmap.set_under('white')
+            # Form a colormap based on the normalization
             hex_cmap = mpl.cm.ScalarMappable(cmap=cmap, norm=hex_norm)
 
+            # Plot hexbin plot
             ax_hexbin.hexbin(oned_vnp, oned_vj1, gridsize=50, cmap=hex_cmap.cmap, norm=hex_norm)
+            # Plot the 1:1 line
             ax_hexbin.plot([0, overall_max], [0, overall_max], 'k', linestyle='--')
+            # Set axes limits and labels
             ax_hexbin.set_xlim(overall_min, overall_max)
             ax_hexbin.set_ylim(overall_min, overall_max)
             ax_hexbin.set_xlabel(f'VNP{product} {figure_keyword}')
-            ax_hexbin.set_ylabel(f'VJ{product} {figure_keyword}')
+            ax_hexbin.set_ylabel(f'VJ1{product} {figure_keyword}')
 
+            # Set up the axis-mounted histograms
             ax.tick_params(direction='in', top=True, right=True)
             ax_histx = plt.axes(rect_histx)
             ax_histx.tick_params(direction='in', labelbottom=False)
@@ -211,22 +220,24 @@ def main(vnp_file_name, vj1_file_name, albedo_sat, save_figs=False, show_figs=Tr
             ax_histy.tick_params(direction='in', labelleft=False)
             ax_histy.axis('off')
 
-            # now determine nice limits by hand:
-            binwidth = 0.25
-            #lim = np.ceil(np.abs([x, y]).max() / binwidth) * binwidth
-            #ax_scatter.set_xlim((-lim, lim))
-            #ax_scatter.set_ylim((-lim, lim))
-
-            #bins = np.arange(-lim, lim + binwidth, binwidth)
+            # Plot the histograms
             ax_histx.hist(oned_vnp, bins=np.arange(0, 1, 0.025), rwidth=0.9, color='dimgrey')
             ax_histy.hist(oned_vj1, bins=np.arange(0, 1, 0.025), orientation='horizontal', rwidth=0.9, color='dimgrey')
-
+            # Set axis limits
             ax_histx.set_xlim(ax_hexbin.get_xlim())
             ax_histy.set_ylim(ax_hexbin.get_ylim())
 
+            # Subplot 6: Histogram of differences
             ax = fig.add_subplot(2, 3, 6)
+            # Draw the major tick gridlines (zorder controls plotting order)
             grid = ax.grid(which='major', axis='y', zorder=0)
-            ax.hist(oned_diff, bins=np.arange(-1, 1, 0.05), weights=np.zeros_like(oned_diff) + 1. / oned_diff.size, color='dimgrey', zorder=3)
+            # Draw the histogram bins (zorder of at least 3 was required to plot in the foreground)
+            ax.hist(oned_diff,
+                    bins=np.arange(-1, 1, 0.05),
+                    weights=np.zeros_like(oned_diff) + 1. / oned_diff.size,
+                    color='dimgrey',
+                    zorder=3)
+            # Set limits and labels
             ax.set_xlim(np.nanmin(oned_diff), np.nanmax(oned_diff))
             ax.set_xlabel(f"Difference (VNP{product} - VJ1{product})")
             ax.set_ylabel(f"Frequency")
@@ -239,7 +250,6 @@ def main(vnp_file_name, vj1_file_name, albedo_sat, save_figs=False, show_figs=Tr
                 plt.show()
             # Close figure
             plt.close()
-
 
 
 if __name__ == '__main__':
