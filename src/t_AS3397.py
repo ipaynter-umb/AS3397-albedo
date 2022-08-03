@@ -7,6 +7,7 @@ from os import walk, environ
 import dotenv
 from t_laads_tools import zero_pad_number, get_doy_from_date
 from pathlib import Path
+from scipy import stats as st
 
 # Load environmental variables
 dotenv.load_dotenv()
@@ -17,6 +18,7 @@ mpl.rc('axes', labelsize=14)
 mpl.rc('xtick', labelsize=12)
 mpl.rc('ytick', labelsize=12)
 
+"""
 def compare_images(tile, date):
 
     # Assemble target file name from date
@@ -72,3 +74,5 @@ def draw_histogram():
     ax.set_xlim(datetime.datetime(year=2012, month=1, day=1), datetime.datetime.today())
 
     pass
+
+"""

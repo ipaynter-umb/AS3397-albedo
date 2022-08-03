@@ -12,7 +12,7 @@ from pathlib import Path
 def worker_function(target_url):
     # Start time for the file
     ptime = time()
-    # Start a LAADS session (the requests session object is not thread-safe so we need one per thread
+    # Start a LAADS session (the requests session object is not thread-safe so we need one per thread)
     s = t_laads_tools.connect_to_laads()
     # Get the requested file from the URL
     h5file = t_laads_tools.get_VIIRS_file(s, target_url, write_local=True)
@@ -65,20 +65,31 @@ def main(archive_set, product, tiles, dates):
     # Mark start time
     stime = time()
 
-    # Retrieve a dictionary of the VJ1 URLs on LAADS
-    vj1_dict = t_laads_tools.LaadsUrlsDict(f"VJ1{product}", archive_set=archive_set)
-    # Retrieve a dictionary of the VNP URLs on LAADS
-    vnp_dict = t_laads_tools.LaadsUrlsDict(f"VNP{product}", archive_set=archive_set)
+    # <> We need to spider the products for the archive sets too. This is silly.
+    # If the archive set is not 5000 (VNP products only)
+    if archive_set != "5000":
+        # Retrieve a dictionary of the VJ1 URLs on LAADS
+        vj1_dict = t_laads_tools.LaadsUrlsDict(f"VJ1{product}", archive_set=archive_set)
+    # If the archive set is not 3194 (VJ1 products only)
+    if archive_set != "3194":
+        # Retrieve a dictionary of the VNP URLs on LAADS
+        vnp_dict = t_laads_tools.LaadsUrlsDict(f"VNP{product}", archive_set=archive_set)
 
     # Report time elapsed
     print(f"URL dictionary retrieved in {around(time() - stime, decimals=2)} seconds.")
     # Checkpoint the time
     ptime = time()
 
-    # Get list of URLs for VJ1 files that are not already downloaded
-    url_list = check_for_files(vj1_dict, tiles, dates)
-    # Update list of URLs for VNP files that are not already downloaded
-    url_list = check_for_files(vnp_dict, tiles, dates, url_list=url_list)
+    # Instantiate URL list
+    url_list = []
+    # If the archive set is not 5000 (VNP products only)
+    if archive_set != "5000":
+        # Get list of URLs for VJ1 files that are not already downloaded
+        url_list = check_for_files(vj1_dict, tiles, dates, url_list=url_list)
+    # If the archive set is not 3194 (VJ1 products only)
+    if archive_set != "3194":
+        # Update list of URLs for VNP files that are not already downloaded
+        url_list = check_for_files(vnp_dict, tiles, dates, url_list=url_list)
     # Report time elapsed
     print(f"List of {len(url_list)} URLs formed in {around(time() - ptime, decimals=2)} seconds.")
     # Checkpoint the time
@@ -97,6 +108,7 @@ def main(archive_set, product, tiles, dates):
             # Calling the .result() method returns whatever is returned by the function the workers performed
             # In this case we submitted tasks to the worker_function which returns the h5file object
             h5obj = completed_event.result()
+
     # Report on the overall time taken
     print(f"All downloads finished in {around(time() - stime, decimals=2)} seconds.")
 
@@ -108,13 +120,13 @@ if __name__ == "__main__":
     load_dotenv()
 
     # Archive set for product. Enter as number only (e.g. for AS3397, enter "3397")
-    arch_set = "3397"
+    arch_set = "3194"
 
     # Product base name (e.g. for VNP43MA3 versus VJ143MA3, enter "43MA3")
     product_base = "43MA4"
 
     # Tile list
-    tile_list = ["h12v04", "h17v01"]
+    tile_list = ["h09v05", "h12v04", "h17v01"]
 
     # Date list
     date_list = [datetime.date(year=2021,

@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 import matplotlib as mpl
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import seaborn as sns
+from scipy import stats as st
 
 # Load the environmental variables
 dotenv.load_dotenv()
@@ -18,22 +19,33 @@ mpl.rc('axes', labelsize=14)
 mpl.rc('axes', titlesize=14)
 mpl.rc('xtick', labelsize=12)
 mpl.rc('ytick', labelsize=12)
+plt.rcParams['text.usetex'] = False
 
 
 # Main function
 def main(vnp_file_name, vj1_file_name, albedo_sat, save_figs=False, show_figs=True):
 
+
+
     # Open the vnp and vj1 files as h5py File objects
     vnp_file = h5py.File(Path(environ['output_files_path'] + vnp_file_name))
     vj1_file = h5py.File(Path(environ['output_files_path'] + vj1_file_name))
 
+    # Split the name for the different Archive Sets
+    vnp_file_name = vnp_file_name.split('\\')[-1]
     # Split out the product, tile name and the date
     split_name = vnp_file_name.split('.')
     tile = split_name[2]
     year = split_name[1][1:5]
     doy = split_name[1][5:8]
     product = split_name[0][3:]
-    # Establish the keywords and scale factor for the product
+
+    # If it's the harvard forest tile
+    if tile == 'h12v04':
+        # Adjust saturation for albedo
+        albedo_sat = 0.6
+
+# Establish the keywords and scale factor for the product
     # <> support dictionary?
     keyword = "Albedo"
     figure_keyword = "Albedo"
@@ -98,6 +110,10 @@ def main(vnp_file_name, vj1_file_name, albedo_sat, save_figs=False, show_figs=Tr
             # Get the overall max and mins between the arrays
             overall_max = max(np.nanmax(vnp_filter_array), np.nanmax(vj1_filter_array))
             overall_min = min(np.nanmin(vnp_filter_array), np.nanmin(vj1_filter_array))
+
+            # Get 1 sample 2-tailed t-test to see if mean of differences is non-zero
+            diff_mean = np.nanmean(oned_diff)
+            t_stat, p_value = st.ttest_1samp(a=oned_diff, popmean=0, nan_policy='omit')
 
             # PLOTTING DATA
 
@@ -237,7 +253,20 @@ def main(vnp_file_name, vj1_file_name, albedo_sat, save_figs=False, show_figs=Tr
                     weights=np.zeros_like(oned_diff) + 1. / oned_diff.size,
                     color='dimgrey',
                     zorder=3)
+            # Construct title label
+            title_label = f'Differences: '
+            title_label += u'\u03bc:' + f'{np.around(diff_mean, decimals=3)} '
+            title_label += f't: {np.around(t_stat, decimals=2)} '
+
+            if p_value < 0.01:
+                p_value_label = '<0.01'
+            else:
+                p_value_label = np.around(p_value, decimals=2)
+
+            title_label += f'p: {p_value_label}'
+
             # Set limits and labels
+            ax.set_title(title_label)
             ax.set_xlim(np.nanmin(oned_diff), np.nanmax(oned_diff))
             ax.set_xlabel(f"Difference (VNP{product} - VJ1{product})")
             ax.set_ylabel(f"Frequency")
@@ -256,9 +285,9 @@ if __name__ == '__main__':
 
     # USER-DEFINED INPUTS
     # VNP file name
-    vnp_file = 'VNP43MA4.A2021201.h17v01.002.2022121145105.h5'
+    #vnp_file = str(Path('3397/VNP43MA3.A2021201.h17v01.002.2022121145105.h5'))
     # VJ1 file name
-    vj1_file = 'VJ143MA4.A2021201.h17v01.002.2022153174223.h5'
+    #vj1_file = str(Path('3397/VJ143MA3.A2021201.h17v01.002.2022153174223.h5'))
     # Albedo saturation value for plots
     albedo_sat = 1
     # Show figures? True/False
@@ -266,7 +295,32 @@ if __name__ == '__main__':
     # Save the figures? True/False
     save_figures = True
 
+    # Comparisons list
+    previous_list = [[str(Path('3397/VNP43MA3.A2021201.h12v04.002.2022121140615.h5')),
+                         str(Path('3397/VJ143MA3.A2021201.h12v04.002.2022153174223.h5'))],
+                        [str(Path('3397/VNP43MA4.A2021201.h17v01.002.2022121145105.h5')),
+                         str(Path('3397/VJ143MA4.A2021201.h17v01.002.2022153174223.h5'))],
+                        [str(Path('3397/VNP43MA4.A2021201.h12v04.002.2022121140615.h5')),
+                         str(Path('3397/VJ143MA4.A2021201.h12v04.002.2022153174223.h5'))]]
+    comparisons_list = [
+                        [str(Path('5000/VNP43MA3.A2021201.h09v05.001.2021277141246.h5')),
+                         str(Path('3194/VJ143MA3.A2021201.h09v05.002.2021209072428.h5'))],
+                        [str(Path('5000/VNP43MA3.A2021201.h12v04.001.2021277141433.h5')),
+                         str(Path('3194/VJ143MA3.A2021201.h12v04.002.2021209080251.h5'))],
+                        [str(Path('5000/VNP43MA3.A2021201.h17v01.001.2021277141743.h5')),
+                         str(Path('3194/VJ143MA3.A2021201.h17v01.002.2021209082154.h5'))],
+                        [str(Path('5000/VNP43MA4.A2021201.h09v05.001.2021277141246.h5')),
+                         str(Path('3194/VJ143MA4.A2021201.h09v05.002.2021209072428.h5'))],
+                        [str(Path('5000/VNP43MA4.A2021201.h12v04.001.2021277141433.h5')),
+                         str(Path('3194/VJ143MA4.A2021201.h12v04.002.2021209080251.h5'))],
+                        [str(Path('5000/VNP43MA4.A2021201.h17v01.001.2021277141743.h5')),
+                         str(Path('3194/VJ143MA4.A2021201.h17v01.002.2021209082154.h5'))]]
+
     # END USER INPUTS
 
-    # Call main function
-    main(vnp_file, vj1_file, albedo_sat, save_figs=save_figures, show_figs=show_figures)
+    for comparison in comparisons_list:
+        vnp_file = comparison[0]
+        vj1_file = comparison[1]
+
+        # Call main function
+        main(vnp_file, vj1_file, albedo_sat, save_figs=save_figures, show_figs=show_figures)
